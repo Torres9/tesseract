@@ -100,7 +100,6 @@ class _ConstTessMemberResultCallback_0_0<del, void, T>
   }
 };
 
-#ifndef SWIG
 template <class T1, class T2, class R>
 inline typename _ConstTessMemberResultCallback_0_0<true,R,T1>::base*
 NewTessCallback(
@@ -108,9 +107,7 @@ NewTessCallback(
   return new _ConstTessMemberResultCallback_0_0<true,R,T1>(
       obj, member);
 }
-#endif
 
-#ifndef SWIG
 template <class T1, class T2, class R>
 inline typename _ConstTessMemberResultCallback_0_0<false,R,T1>::base*
 NewPermanentTessCallback(
@@ -118,7 +115,6 @@ NewPermanentTessCallback(
   return new _ConstTessMemberResultCallback_0_0<false,R,T1>(
       obj, member);
 }
-#endif
 
 template <bool del, class R, class T>
 class _TessMemberResultCallback_0_0 : public TessResultCallback<R> {

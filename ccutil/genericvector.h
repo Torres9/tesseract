@@ -1028,10 +1028,8 @@ int GenericVector<T>::choose_nth_item(int target_index, int start, int end,
     }
   }
   // Place the pivot at start.
-  #ifndef rand_r  // _MSC_VER, ANDROID
   srand(*seed);
   #define rand_r(seed) rand()
-  #endif  // _MSC_VER
   int pivot = rand_r(seed) % num_elements + start;
   swap(pivot, start);
   // The invariant condition here is that items [start, next_lesser) are less
