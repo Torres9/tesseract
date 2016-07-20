@@ -60,11 +60,6 @@
  ******************************************************************************/
 
 #include "platform.h"
-/* _WIN32 */
-#ifdef _WIN32
-#include <windows.h>
-#include <winbase.h>             // winbase.h contains windows.h
-#endif
 
 /********************************************************/
 /* __MAC__ */
@@ -101,13 +96,8 @@ typedef short inT16;
 typedef unsigned short uinT16;
 typedef int inT32;
 typedef unsigned int uinT32;
-#if (_MSC_VER >= 1200)            //%%% vkr for VC 6.0
-typedef INT64 inT64;
-typedef UINT64 uinT64;
-#else
 typedef long long int inT64;
 typedef unsigned long long int uinT64;
-#endif                           //%%% vkr for VC 6.0
 typedef float FLOAT32;
 typedef double FLOAT64;
 typedef unsigned char BOOL8;
