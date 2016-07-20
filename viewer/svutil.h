@@ -24,25 +24,8 @@
 #ifndef TESSERACT_VIEWER_SVUTIL_H__
 #define TESSERACT_VIEWER_SVUTIL_H__
 
-#ifdef _WIN32
-#ifndef __GNUC__
-#include <windows.h>
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define snprintf _snprintf
-#endif
-#if (_MSC_VER <= 1400)
-#define vsnprintf _vsnprintf
-#endif
-#pragma warning(disable:4786)
-#else
-#include "platform.h"
-#include <windows.h>
-#endif
-#else
 #include <pthread.h>
 #include <semaphore.h>
-#endif
-
 #include <string>
 
 #ifndef MAX
@@ -75,13 +58,7 @@ class SVSemaphore {
   /// Wait on a semaphore.
   void Wait();
  private:
-#ifdef _WIN32
-  HANDLE semaphore_;
-#elif defined(__APPLE__)
   sem_t *semaphore_;
-#else
-  sem_t semaphore_;
-#endif
 };
 
 /// A mutex which encapsulates the main locking and unlocking
@@ -95,11 +72,7 @@ class SVMutex {
   /// Unlocks on a mutex.
   void Unlock();
  private:
-#ifdef _WIN32
-  HANDLE mutex_;
-#else
   pthread_mutex_t mutex_;
-#endif
 };
 
 /// The SVNetwork class takes care of the remote connection for ScrollView

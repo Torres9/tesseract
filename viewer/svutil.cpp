@@ -21,15 +21,6 @@
 // thread/process creation & synchronization and network connection.
 
 #include <stdio.h>
-#ifdef _WIN32
-struct addrinfo {
-  struct sockaddr* ai_addr;
-  int ai_addrlen;
-  int ai_family;
-  int ai_socktype;
-  int ai_protocol;
-};
-#else
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -40,11 +31,7 @@ struct addrinfo {
 #include <netdb.h>
 #include <sys/select.h>
 #include <sys/socket.h>
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
 #include <unistd.h>
-#endif
 
 #include <cstdlib>
 #include <cstring>
@@ -57,18 +44,13 @@ struct addrinfo {
 #endif
 
 #ifndef GRAPHICS_DISABLED
-
 #include "svutil.h"
 
 const int kMaxMsgSize = 4096;
 
 // Signals a thread to exit.
 void SVSync::ExitThread() {
-#ifdef _WIN32
-  // ExitThread(0);
-#else
   pthread_exit(0);
-#endif
 }
 
 // Starts a new process.
@@ -78,23 +60,10 @@ void SVSync::StartProcess(const char* executable, const char* args) {
   proc.append(" ");
   proc.append(args);
   std::cout << "Starting " << proc << std::endl;
-#ifdef _WIN32
-  STARTUPINFO start_info;
-  PROCESS_INFORMATION proc_info;
-  GetStartupInfo(&start_info);
-  if (!CreateProcess(NULL, const_cast<char*>(proc.c_str()), NULL, NULL, FALSE,
-                CREATE_NO_WINDOW | DETACHED_PROCESS, NULL, NULL,
-                &start_info, &proc_info))
-    return;
-#else
+
   int pid = fork();
   if (pid != 0) {   // The father process returns
   } else {
-#ifdef __linux__
-    // Make sure the java process terminates on exit, since its
-    // broken socket detection seems to be useless.
-    prctl(PR_SET_PDEATHSIG, 2, 0, 0, 0);
-#endif
     char* mutable_args = strdup(args);
     int argc = 1;
     for (int i = 0; mutable_args[i]; ++i) {
@@ -119,13 +88,9 @@ void SVSync::StartProcess(const char* executable, const char* args) {
     argv[argc] = NULL;
     execvp(executable, argv);
   }
-#endif
 }
 
 SVSemaphore::SVSemaphore() {
-#ifdef _WIN32
-  semaphore_ = CreateSemaphore(0, 0, 10, 0);
-#elif defined(__APPLE__)
   char name[50];
   snprintf(name, sizeof(name), "%ld", random());
   sem_unlink(name);
@@ -133,72 +98,33 @@ SVSemaphore::SVSemaphore() {
   if (semaphore_ == SEM_FAILED) {
     perror("sem_open");
   }
-#else
-  sem_init(&semaphore_, 0, 0);
-#endif
 }
 
 void SVSemaphore::Signal() {
-#ifdef _WIN32
-  ReleaseSemaphore(semaphore_, 1, NULL);
-#elif defined(__APPLE__)
   sem_post(semaphore_);
-#else
-  sem_post(&semaphore_);
-#endif
 }
 
 void SVSemaphore::Wait() {
-#ifdef _WIN32
-  WaitForSingleObject(semaphore_, INFINITE);
-#elif defined(__APPLE__)
   sem_wait(semaphore_);
-#else
-  sem_wait(&semaphore_);
-#endif
 }
 
 SVMutex::SVMutex() {
-#ifdef _WIN32
-  mutex_ = CreateMutex(0, FALSE, 0);
-#else
   pthread_mutex_init(&mutex_, NULL);
-#endif
 }
 
 void SVMutex::Lock() {
-#ifdef _WIN32
-  WaitForSingleObject(mutex_, INFINITE);
-#else
   pthread_mutex_lock(&mutex_);
-#endif
 }
 
 void SVMutex::Unlock() {
-#ifdef _WIN32
-  ReleaseMutex(mutex_);
-#else
   pthread_mutex_unlock(&mutex_);
-#endif
 }
 
 // Create new thread.
 
 void SVSync::StartThread(void *(*func)(void*), void* arg) {
-#ifdef _WIN32
-  LPTHREAD_START_ROUTINE f = (LPTHREAD_START_ROUTINE) func;
-  DWORD threadid;
-  HANDLE newthread = CreateThread(
-  NULL,          // default security attributes
-  0,             // use default stack size
-  f,             // thread function
-  arg,           // argument to thread function
-  0,             // use default creation flags
-  &threadid);    // returns the thread identifier
-#else
   pthread_t helper;
   pthread_create(&helper, NULL, func, arg);
-#endif
 }
 
 // Place a message in the message buffer (and flush it).
@@ -222,11 +148,7 @@ void SVNetwork::Flush() {
 // This will always return one line of char* (denoted by \n).
 char* SVNetwork::Receive() {
   char* result = NULL;
-#if defined(_WIN32) || defined(__CYGWIN__)
-  if (has_content) { result = strtok (NULL, "\n"); }
-#else
   if (buffer_ptr_ != NULL) { result = strtok_r(NULL, "\n", &buffer_ptr_); }
-#endif
 
   // This means there is something left in the buffer and we return it.
   if (result != NULL) { return result;
@@ -258,32 +180,20 @@ char* SVNetwork::Receive() {
     if (i <= 0) { return NULL; }
     msg_buffer_in_[i] = '\0';
     has_content = true;
-#ifdef _WIN32
-    return strtok(msg_buffer_in_, "\n");
-#else
     // Setup a new string tokenizer.
     return strtok_r(msg_buffer_in_, "\n", &buffer_ptr_);
-#endif
   }
 }
 
 // Close the connection to the server.
 void SVNetwork::Close() {
-#ifdef _WIN32
-  closesocket(stream_);
-#else
   close(stream_);
-#endif
 }
 
 
 // The program to invoke to start ScrollView
 static const char* ScrollViewProg() {
-#ifdef _WIN32
-  const char* prog = "java -Xms512m -Xmx1024m";
-#else
   const char* prog = "sh";
-#endif
   return prog;
 }
 
@@ -295,14 +205,9 @@ static std::string ScrollViewCommand(std::string scrollview_path) {
   // exceptions in piccolo. Ideally piccolo would be debugged to make
   // this unnecessary.
   // Also the path has to be separated by ; on windows and : otherwise.
-#ifdef _WIN32
-  const char* cmd_template = "-Djava.library.path=%s -jar %s/ScrollView.jar";
-
-#else
   const char* cmd_template = "-c \"trap 'kill %%1' 0 1 2 ; java "
       "-Xms1024m -Xmx2048m -jar %s/ScrollView.jar"
       " & wait\"";
-#endif
   int cmdlen = strlen(cmd_template) + 4*strlen(scrollview_path.c_str()) + 1;
   char* cmd = new char[cmdlen];
   const char* sv_path = scrollview_path.c_str();
@@ -315,17 +220,12 @@ static std::string ScrollViewCommand(std::string scrollview_path) {
 
 // Platform-independent freeaddrinfo()
 static void FreeAddrInfo(struct addrinfo* addr_info) {
-  #if defined(__linux__)
-  freeaddrinfo(addr_info);
-  #else
   delete addr_info->ai_addr;
   delete addr_info;
-  #endif
 }
 
 
 // Non-linux version of getaddrinfo()
-#if !defined(__linux__)
 static int GetAddrInfoNonLinux(const char* hostname, int port,
                                struct addrinfo** addr_info) {
 // Get the host data depending on the OS.
@@ -341,13 +241,7 @@ static int GetAddrInfoNonLinux(const char* hostname, int port,
   (*addr_info)->ai_socktype = SOCK_STREAM;
 
   struct hostent *name;
-#ifdef _WIN32
-  WSADATA wsaData;
-  WSAStartup(MAKEWORD(1, 1), &wsaData);
   name = gethostbyname(hostname);
-#else
-  name = gethostbyname(hostname);
-#endif
 
   if (name == NULL) {
     FreeAddrInfo(*addr_info);
@@ -362,20 +256,13 @@ static int GetAddrInfoNonLinux(const char* hostname, int port,
   address->sin_port = htons(port);
   return 0;
 }
-#endif
 
 
 // Platform independent version of getaddrinfo()
 //   Given a hostname:port, produce an addrinfo struct
 static int GetAddrInfo(const char* hostname, int port,
                        struct addrinfo** address) {
-#if defined(__linux__)
-  char port_str[40];
-  snprintf(port_str, 40, "%d", port);
-  return getaddrinfo(hostname, port_str, NULL, address);
-#else
   return GetAddrInfoNonLinux(hostname, port, address);
-#endif
 }
 
 
@@ -402,15 +289,7 @@ SVNetwork::SVNetwork(const char* hostname, int port) {
   if (connect(stream_, addr_info->ai_addr, addr_info->ai_addrlen) < 0) {
     const char* scrollview_path = getenv("SCROLLVIEW_PATH");
     if (scrollview_path == NULL) {
-#ifdef SCROLLVIEW_PATH
-#define _STR(a) #a
-#define _XSTR(a) _STR(a)
-      scrollview_path = _XSTR(SCROLLVIEW_PATH);
-#undef _XSTR
-#undef _STR
-#else
       scrollview_path = ".";
-#endif
     }
     const char *prog = ScrollViewProg();
     std::string command = ScrollViewCommand(scrollview_path);
@@ -425,11 +304,7 @@ SVNetwork::SVNetwork(const char* hostname, int port) {
     while (connect(stream_, addr_info->ai_addr,
                    addr_info->ai_addrlen) < 0) {
       std::cout << "ScrollView: Waiting for server...\n";
-#ifdef _WIN32
-      Sleep(1000);
-#else
       sleep(1);
-#endif
 
       stream_ = socket(addr_info->ai_family, addr_info->ai_socktype,
                    addr_info->ai_protocol);
