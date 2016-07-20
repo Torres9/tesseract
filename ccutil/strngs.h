@@ -72,14 +72,7 @@ class TESS_API STRING
      return strncpy(new char[len], GetCStr(), len);
     }
 
-#if STRING_IS_PROTECTED
-    const char &operator[] (inT32 index) const;
-    // len is number of chars in s to insert starting at index in this string
-    void insert_range(inT32 index, const char*s, int len);
-    void erase_range(inT32 index, int len);
-#else
     char &operator[] (inT32 index) const;
-#endif
     void split(const char c, GenericVector<STRING> *splited);
     void truncate_at(inT32 index);
 
@@ -153,12 +146,7 @@ class TESS_API STRING
       return ((const char *)data_) + sizeof(STRING_HEADER);
     };
     inline bool InvariantOk() const {
-#if STRING_IS_PROTECTED
-      return (GetHeader()->used_ == 0) ?
-        (string() == NULL) : (GetHeader()->used_ == (strlen(string()) + 1));
-#else
       return true;
-#endif
     }
 
     // Ensure string has requested capacity as optimization

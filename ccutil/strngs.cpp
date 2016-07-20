@@ -212,55 +212,6 @@ const char* STRING::c_str() const {
  *
  * Also makes the [] operator return a const so it is immutable
  */
-#if STRING_IS_PROTECTED
-const char& STRING::operator[](inT32 index) const {
-  return GetCStr()[index];
-}
-
-void STRING::insert_range(inT32 index, const char* str, int len) {
-  // if index is outside current range, then also grow size of string
-  // to accmodate the requested range.
-  STRING_HEADER* this_header = GetHeader();
-  int used = this_header->used_;
-  if (index > used)
-    used = index;
-
-  char* this_cstr = ensure_cstr(used + len + 1);
-  if (index < used) {
-    // move existing string from index to '\0' inclusive.
-    memmove(this_cstr + index + len,
-           this_cstr + index,
-           this_header->used_ - index);
-  } else if (len > 0) {
-    // We are going to overwrite previous null terminator, so write the new one.
-    this_cstr[this_header->used_ + len - 1] = '\0';
-
-    // If the old header did not have the terminator,
-    // then we need to account for it now that we've added it.
-    // Otherwise it was already accounted for; we just moved it.
-    if (this_header->used_ == 0)
-      ++this_header->used_;
-  }
-
-  // Write new string to index.
-  // The string is already terminated from the conditions above.
-  memcpy(this_cstr + index, str, len);
-  this_header->used_ += len;
-
-  assert(InvariantOk());
-}
-
-void STRING::erase_range(inT32 index, int len) {
-  char* this_cstr = GetCStr();
-  STRING_HEADER* this_header = GetHeader();
-
-  memcpy(this_cstr+index, this_cstr+index+len,
-         this_header->used_ - index - len);
-  this_header->used_ -= len;
-  assert(InvariantOk());
-}
-
-#else
 void STRING::truncate_at(inT32 index) {
   ASSERT_HOST(index >= 0);
   FixHeader();
@@ -276,7 +227,6 @@ char& STRING::operator[](inT32 index) const {
   GetHeader()->used_ = -1;
   return ((char *)GetCStr())[index];
 }
-#endif
 
 void STRING::split(const char c, GenericVector<STRING> *splited) {
   int start_index = 0;
