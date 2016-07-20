@@ -48,13 +48,7 @@ tprintf_internal(                       // Trace printf
 
   va_start(args, format);  // variable list
   // Format into msg
-  #ifdef _WIN32
-  offset += _vsnprintf(msg + offset, MAX_MSG_LEN - offset, format, args);
-  if (strcmp(debug_file.string(), "/dev/null") == 0)
-    debug_file.set_value("nul");
-  #else
   offset += vsnprintf(msg + offset, MAX_MSG_LEN - offset, format, args);
-  #endif
   va_end(args);
 
   if (debugfp == NULL && strlen(debug_file.string()) > 0) {
