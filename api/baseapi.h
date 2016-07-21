@@ -65,9 +65,7 @@ struct TBLOB;
 
 namespace tesseract {
 
-#ifndef NO_CUBE_BUILD
 class CubeRecoContext;
-#endif  // NO_CUBE_BUILD
 class Dawg;
 class Dict;
 class EquationDetect;

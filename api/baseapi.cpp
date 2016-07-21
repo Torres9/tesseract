@@ -26,23 +26,9 @@
 #include <signal.h>
 #endif
 
-#if defined(_WIN32)
-#ifdef _MSC_VER
-#include "vcsversion.h"
-#include "mathfix.h"
-#elif MINGW
-// workaround for stdlib.h with -std=c++11 for _splitpath and _MAX_FNAME
-#undef __STRICT_ANSI__
-#endif  // _MSC_VER
-#include <stdlib.h>
-#include <windows.h>
-#include <fcntl.h>
-#include <io.h>
-#else
 #include <dirent.h>
 #include <libgen.h>
 #include <string.h>
-#endif  // _WIN32
 
 #include <iostream>
 #include <string>
@@ -50,7 +36,6 @@
 #include <fstream>
 
 #include "allheaders.h"
-
 #include "baseapi.h"
 #include "blobclass.h"
 #include "resultiterator.h"
@@ -140,11 +125,7 @@ TessBaseAPI::~TessBaseAPI() {
  * Returns the version identifier as a static string. Do not delete.
  */
 const char* TessBaseAPI::Version() {
-#if defined(GIT_REV) && (defined(DEBUG) || defined(_DEBUG))
-  return GIT_REV;
-#else
-  return TESSERACT_VERSION_STR;
-#endif
+    return TESSERACT_VERSION_STR;
 }
 
 /**
@@ -154,23 +135,7 @@ const char* TessBaseAPI::Version() {
  * and returns sizeof(cl_device_id)
  * otherwise *device=NULL and returns 0.
  */
-#ifdef USE_OPENCL
-#if USE_DEVICE_SELECTION
-#include "opencl_device_selection.h"
-#endif
-#endif
 size_t TessBaseAPI::getOpenCLDevice(void **data) {
-#ifdef USE_OPENCL
-#if USE_DEVICE_SELECTION
-  ds_device device = OpenclDevice::getDeviceSelection();
-  if (device.type == DS_DEVICE_OPENCL_DEVICE) {
-    *data = reinterpret_cast<void*>(new cl_device_id);
-    memcpy(*data, &device.oclDeviceID, sizeof(cl_device_id));
-    return sizeof(cl_device_id);
-  }
-#endif
-#endif
-
   *data = NULL;
   return 0;
 }
@@ -180,18 +145,7 @@ size_t TessBaseAPI::getOpenCLDevice(void **data) {
  * SIGSEGV, SIGFPE, or SIGBUS signal. (Linux/Unix only).
  */
 void TessBaseAPI::CatchSignals() {
-#ifdef __linux__
-  struct sigaction action;
-  memset(&action, 0, sizeof(action));
-  action.sa_handler = &signal_exit;
-  action.sa_flags = SA_RESETHAND;
-  sigaction(SIGSEGV, &action, NULL);
-  sigaction(SIGFPE, &action, NULL);
-  sigaction(SIGBUS, &action, NULL);
-#else
-  // Warn API users that an implementation is needed.
   tprintf("CatchSignals has no non-linux implementation!\n");
-#endif
 }
 
 /**
@@ -371,20 +325,6 @@ void TessBaseAPI::GetAvailableLanguagesAsVector(
     GenericVector<STRING>* langs) const {
   langs->clear();
   if (tesseract_ != NULL) {
-#ifdef _WIN32
-    STRING pattern = tesseract_->datadir + "/*." + kTrainedDataSuffix;
-    char fname[_MAX_FNAME];
-    WIN32_FIND_DATA data;
-    BOOL result = TRUE;
-    HANDLE handle = FindFirstFile(pattern.string(), &data);
-    if (handle != INVALID_HANDLE_VALUE) {
-      for (; result; result = FindNextFile(handle, &data)) {
-        _splitpath(data.cFileName, NULL, NULL, fname, NULL);
-        langs->push_back(STRING(fname));
-      }
-      FindClose(handle);
-    }
-#else  // _WIN32
     DIR *dir;
     struct dirent *dirent;
     char *dot;
@@ -409,7 +349,6 @@ void TessBaseAPI::GetAvailableLanguagesAsVector(
       }
       closedir(dir);
     }
-#endif
   }
 }
 
@@ -1036,25 +975,12 @@ bool TessBaseAPI::ProcessPagesMultipageTiff(const l_uint8 *data,
                                             int timeout_millisec,
                                             TessResultRenderer* renderer,
                                             int tessedit_page_number) {
-#ifndef ANDROID_BUILD
   Pix *pix = NULL;
-#ifdef USE_OPENCL
-  OpenclDevice od;
-#endif  // USE_OPENCL
   int page = (tessedit_page_number >= 0) ? tessedit_page_number : 0;
   for (; ; ++page) {
     if (tessedit_page_number >= 0)
       page = tessedit_page_number;
-#ifdef USE_OPENCL
-    if ( od.selectedDeviceIsOpenCL() ) {
-      // FIXME(jbreiden) Not implemented.
-      pix = od.pixReadMemTiffCl(data, size, page);
-    } else {
-#endif  // USE_OPENCL
       pix = pixReadMemTiff(data, size, page);
-#ifdef USE_OPENCL
-    }
-#endif  // USE_OPENCL
     if (pix == NULL) break;
     tprintf("Page %d\n", page + 1);
     char page_str[kMaxIntSize];
@@ -1067,9 +993,6 @@ bool TessBaseAPI::ProcessPagesMultipageTiff(const l_uint8 *data,
     if (tessedit_page_number >= 0) break;
   }
   return true;
-#else
-  return false;
-#endif
 }
 
 // Master ProcessPages calls ProcessPagesInternal and then does any post-
@@ -1105,14 +1028,9 @@ bool TessBaseAPI::ProcessPagesInternal(const char* filename,
                                        const char* retry_config,
                                        int timeout_millisec,
                                        TessResultRenderer* renderer) {
-#ifndef ANDROID_BUILD
   PERF_COUNT_START("ProcessPages")
   bool stdInput = !strcmp(filename, "stdin") || !strcmp(filename, "-");
   if (stdInput) {
-#ifdef WIN32
-    if (_setmode(_fileno(stdin), _O_BINARY) == -1)
-      tprintf("ERROR: cin to binary: %s", strerror(errno));
-#endif  // WIN32
   }
 
   if (stream_filelist) {
@@ -1193,9 +1111,6 @@ bool TessBaseAPI::ProcessPagesInternal(const char* filename,
   }
   PERF_COUNT_END
   return true;
-#else
-  return false;
-#endif
 }
 
 bool TessBaseAPI::ProcessPage(Pix* pix, int page_index, const char* filename,
@@ -1232,10 +1147,8 @@ bool TessBaseAPI::ProcessPage(Pix* pix, int page_index, const char* filename,
   }
 
   if (tesseract_->tessedit_write_images) {
-#ifndef ANDROID_BUILD
     Pix* page_pix = GetThresholdedImage();
     pixWrite("tessinput.tif", page_pix, IFF_TIFF_G4);
-#endif  // ANDROID_BUILD
   }
 
   if (failed && retry_config != NULL && retry_config[0] != '\0') {
@@ -1473,23 +1386,6 @@ char* TessBaseAPI::GetHOCRText(struct ETEXT_DESC* monitor, int page_number) {
 
   if (input_file_ == NULL)
       SetInputName(NULL);
-
-#ifdef _WIN32
-  // convert input name from ANSI encoding to utf-8
-  int str16_len = MultiByteToWideChar(CP_ACP, 0, input_file_->string(), -1,
-                                      NULL, 0);
-  wchar_t *uni16_str = new WCHAR[str16_len];
-  str16_len = MultiByteToWideChar(CP_ACP, 0, input_file_->string(), -1,
-                                  uni16_str, str16_len);
-  int utf8_len = WideCharToMultiByte(CP_UTF8, 0, uni16_str, str16_len, NULL,
-                                     0, NULL, NULL);
-  char *utf8_str = new char[utf8_len];
-  WideCharToMultiByte(CP_UTF8, 0, uni16_str, str16_len, utf8_str,
-                      utf8_len, NULL, NULL);
-  *input_file_ = utf8_str;
-  delete[] uni16_str;
-  delete[] utf8_str;
-#endif
 
   hocr_str += "  <div class='ocr_page'";
   AddIdTohOCR(&hocr_str, "page", page_id, -1);

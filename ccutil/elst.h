@@ -768,11 +768,9 @@ inline void
 ELIST_ITERATOR::sort (           //sort elements
 int comparator (                 //comparison routine
 const void *, const void *)) {
-  #ifndef NDEBUG
   if (!list)
     NO_LIST.error ("ELIST_ITERATOR::sort", ABORT, NULL);
-  #endif
-
+  
   list->sort (comparator);
   move_to_first();
 }
@@ -790,7 +788,6 @@ const void *, const void *)) {
 
 inline void ELIST_ITERATOR::add_to_end(  // element to add
                                        ELIST_LINK *new_element) {
-  #ifndef NDEBUG
   if (!list)
     NO_LIST.error ("ELIST_ITERATOR::add_to_end", ABORT, NULL);
   if (!new_element)
@@ -798,8 +795,7 @@ inline void ELIST_ITERATOR::add_to_end(  // element to add
       "new_element is NULL");
   if (new_element->next)
     STILL_LINKED.error ("ELIST_ITERATOR::add_to_end", ABORT, NULL);
-  #endif
-
+  
   if (this->at_last ()) {
     this->add_after_stay_put (new_element);
   }

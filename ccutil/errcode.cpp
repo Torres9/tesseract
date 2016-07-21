@@ -54,17 +54,9 @@ const char *format, ...          // special message
   if (format != NULL) {
     msgptr += sprintf (msgptr, ":");
     va_start(args, format);  //variable list
-    #ifdef _WIN32
-                                 //print remainder
-    msgptr += _vsnprintf (msgptr, MAX_MSG - 2 - (msgptr - msg), format, args);
-    msg[MAX_MSG - 2] = '\0';     //ensure termination
-    strcat (msg, "\n");
-    #else
-                                 //print remainder
     msgptr += vsprintf (msgptr, format, args);
-                                 //no specific
+                            //no specific
     msgptr += sprintf (msgptr, "\n");
-    #endif
     va_end(args);
   }
   else

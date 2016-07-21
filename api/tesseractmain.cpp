@@ -465,7 +465,6 @@ int main(int argc, char **argv) {
   }
 
   if (!renderers.empty()) {
-    if (banner) PrintBanner();
     bool succeed = api.ProcessPages(image, NULL, 0, renderers[0]);
     if (!succeed) {
       fprintf(stderr, "Error during processing.\n");
